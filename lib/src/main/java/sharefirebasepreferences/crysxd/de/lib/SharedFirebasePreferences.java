@@ -6,7 +6,15 @@ import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
 import android.util.Log;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,22 +22,29 @@ import java.util.Set;
 /**
  * Created by chrwue on 05/04/2017.
  */
-public class SharedFirebasePreferences implements SharedPreferences {
+public class SharedFirebasePreferences implements SharedPreferences, ValueEventListener {
 
     private static final String TAG = "FirebasePreferences";
     private static Map<String, SharedFirebasePreferences> sInstances = new HashMap<>();
-    private Map<String, ?> mCache;
+    private static String sRoot = "/shared-preferences";
+    private Map<String, Object> mCache;
     private List<OnSharedPreferenceChangeListener> mListener;
+    private DatabaseReference mReference;
+    private DatabaseError mError;
 
-    protected SharedFirebasePreferences(String name) {
-
+    protected SharedFirebasePreferences(DatabaseReference reference) {
+        mReference = reference;
     }
 
     public synchronized static SharedFirebasePreferences getInstance(String name) {
         if (!sInstances.containsKey(name)) {
-            sInstances.put(name, new SharedFirebasePreferences(name));
+            sInstances.put(name, new SharedFirebasePreferences(FirebaseDatabase.getInstance().getReference(sRoot).child(name)));
         }
         return sInstances.get(name);
+    }
+
+    public void setDatabaseRoot(String root) {
+        sRoot = root;
     }
 
     @VisibleForTesting
@@ -44,11 +59,25 @@ public class SharedFirebasePreferences implements SharedPreferences {
 
     /**
      * Loads the data from firebase into the cache
+     *
+     * @throws RuntimeException if the operation is interrupted or the database read failed
      */
-    protected void loadCache() {
-        if (mCache == null) {
-            Log.i(TAG, "Loading preferences into cache");
-            mCache = new HashMap<>();
+    protected synchronized void loadCache() throws RuntimeException {
+        try {
+            if (mCache == null) {
+                Log.i(TAG, "Loading preferences into cache");
+                mCache = new HashMap<>();
+                mReference.addListenerForSingleValueEvent(this);
+                mError = null;
+                this.wait();
+
+                if (mError != null) {
+                    throw new RuntimeException(mError.toException());
+                }
+
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -68,7 +97,7 @@ public class SharedFirebasePreferences implements SharedPreferences {
     @Override
     @SuppressWarnings("unchecked")
     public Set<String> getStringSet(String s, @Nullable Set<String> set) {
-        return (Set<String>) getValue(s, set);
+        return new HashSet<>((List<String>) getValue(s, set));
     }
 
     @Override
@@ -111,12 +140,43 @@ public class SharedFirebasePreferences implements SharedPreferences {
         mListener.remove(onSharedPreferenceChangeListener);
     }
 
+    @Override
+    public synchronized void onDataChange(DataSnapshot dataSnapshot) {
+        mCache.clear();
+        for (DataSnapshot d : dataSnapshot.getChildren()) {
+            d.getValue();
+            mCache.put(d.getKey(), d.getValue());
+        }
+        this.notify();
+    }
+
+    @Override
+    public synchronized void onCancelled(DatabaseError databaseError) {
+        mError = databaseError;
+        this.notify();
+    }
+
+    protected void dispatchPreferenceChanged(String key, Object o) {
+        mCache.put(key, o);
+
+        for (OnSharedPreferenceChangeListener l : mListener) {
+            try {
+                l.onSharedPreferenceChanged(this, key);
+            } catch (Exception e) {
+                Log.e(TAG, "Error while notifying listener", e);
+            }
+        }
+    }
+
     public static class Editor implements SharedPreferences.Editor {
 
         private Map<String, Object> mBackup;
 
+        private SharedFirebasePreferences mPreferences;
+
         protected Editor(SharedFirebasePreferences preferences) {
             mBackup = new HashMap<>(preferences.mCache);
+            mPreferences = preferences;
         }
 
         @Override
@@ -127,7 +187,7 @@ public class SharedFirebasePreferences implements SharedPreferences {
 
         @Override
         public SharedPreferences.Editor putStringSet(String s, @Nullable Set<String> set) {
-            mBackup.put(s, set);
+            mBackup.put(s, set == null ? null : new ArrayList<>(set));
             return this;
         }
 
@@ -169,7 +229,34 @@ public class SharedFirebasePreferences implements SharedPreferences {
 
         @Override
         public boolean commit() {
-            return false;
+            HashMap<String, Object> currentState = new HashMap<>(mPreferences.mCache);
+
+            // Delete
+            for (String key : currentState.keySet()) {
+                if (!mBackup.containsKey(key)) {
+                    mPreferences.mReference.child(key).removeValue();
+                    mPreferences.dispatchPreferenceChanged(key, null);
+                }
+            }
+
+            // Add
+            for (String key : mBackup.keySet()) {
+                if (!currentState.containsKey(key)) {
+                    mPreferences.mReference.child(key).removeValue();
+                    mPreferences.dispatchPreferenceChanged(key, mBackup.get(key));
+                }
+            }
+
+            // Update
+            for (String key : currentState.keySet()) {
+                if (mBackup.containsKey(key) && !mBackup.get(key).equals(currentState.get(key))) {
+                    mPreferences.mReference.child(key).removeValue();
+                    mPreferences.dispatchPreferenceChanged(key, mBackup.get(key));
+                }
+            }
+
+            // Return success
+            return true;
         }
 
         @Override
