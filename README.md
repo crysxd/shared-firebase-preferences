@@ -1,9 +1,9 @@
 [![](https://jitpack.io/v/crysxd/SharedFirebasePreferences.svg)](https://jitpack.io/#crysxd/SharedFirebasePreferences)
 
 # About
-A implementation of SharePreferences which syncs with Firebase Database to keep your SharedPreferences in sync between multiple devices of one user and/or to back them up for app re-installs!
+A implementation of SharePreferences which syncs with Firebase database to keep your SharedPreferences in sync between multiple devices of one user and/or to back them up for app re-installs!
 
-The usage is pretty simple and straight forward if you have ever worked with SharedPreferences. You can also easily use them with PreferenceFragmen.
+The usage is pretty simple and straight forward if you have ever worked with SharedPreferences. You can also easily use them with PreferenceFragment.
 
 # Setup
 Add this to your project level build.gradle:
