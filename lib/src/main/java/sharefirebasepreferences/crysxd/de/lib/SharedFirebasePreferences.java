@@ -122,10 +122,10 @@ public class SharedFirebasePreferences implements SharedPreferences {
     /**
      * Fetches the latest data from Firebase
      *
-     * @return the {@link FetchTask}
+     * @return the {@link PullTask}
      */
-    public FetchTask fetch() {
-        return new FetchTask(this).addOnFetchCompleteListener(new OnFetchCompleteListener() {
+    public PullTask pull() {
+        return new PullTask(this).addOnFetchCompleteListener(new OnFetchCompleteListener() {
             @Override
             public void onFetchSucceeded(SharedFirebasePreferences preferences) {
                 Log.i(TAG, "Fetch of " + getRoot().toString() + " succeeded");
@@ -235,19 +235,19 @@ public class SharedFirebasePreferences implements SharedPreferences {
     }
 
     /**
-     * A listener to get notified about fetch results
+     * A listener to get notified about pull results
      */
     public interface OnFetchCompleteListener {
 
         /**
-         * Called when the fetch was successful
+         * Called when the pull was successful
          *
          * @param preferences the updated {@link SharedFirebasePreferences}
          */
         void onFetchSucceeded(SharedFirebasePreferences preferences);
 
         /**
-         * Called when the fetch failed
+         * Called when the pull failed
          *
          * @param e the occured {@link Exception}
          */
@@ -348,7 +348,7 @@ public class SharedFirebasePreferences implements SharedPreferences {
     /**
      * A task fetching the latest values from firebase
      */
-    public static class FetchTask implements ValueEventListener {
+    public static class PullTask implements ValueEventListener {
 
         /**
          * The {@link SharedFirebasePreferences} which should be fetched from Firebase
@@ -365,19 +365,19 @@ public class SharedFirebasePreferences implements SharedPreferences {
          *
          * @param preferences the {@link SharedFirebasePreferences} which should be fetched from Firebase
          */
-        public FetchTask(SharedFirebasePreferences preferences) {
+        public PullTask(SharedFirebasePreferences preferences) {
             mPreferences = preferences;
             mPreferences.getRoot().addListenerForSingleValueEvent(this);
 
         }
 
         /**
-         * Adds a {@link OnFetchCompleteListener} to get informed when the fetch is completed
+         * Adds a {@link OnFetchCompleteListener} to get informed when the pull is completed
          *
          * @param listener the {@link OnFetchCompleteListener}
          * @return this instance
          */
-        public FetchTask addOnFetchCompleteListener(@NonNull OnFetchCompleteListener listener) {
+        public PullTask addOnFetchCompleteListener(@NonNull OnFetchCompleteListener listener) {
             mListener.add(listener);
             return this;
         }

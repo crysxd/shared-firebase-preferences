@@ -63,7 +63,7 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
         if (firebaseAuth.getCurrentUser() != null) {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             if (prefs instanceof SharedFirebasePreferences) {
-                ((SharedFirebasePreferences) prefs).fetch().addOnFetchCompleteListener(new SharedFirebasePreferences.OnFetchCompleteListener() {
+                ((SharedFirebasePreferences) prefs).pull().addOnFetchCompleteListener(new SharedFirebasePreferences.OnFetchCompleteListener() {
                     @Override
                     public void onFetchSucceeded(SharedFirebasePreferences preferences) {
                         showView();
