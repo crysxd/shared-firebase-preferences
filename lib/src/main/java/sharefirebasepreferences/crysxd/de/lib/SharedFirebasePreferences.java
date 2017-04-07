@@ -3,6 +3,7 @@ package sharefirebasepreferences.crysxd.de.lib;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -39,9 +41,24 @@ public class SharedFirebasePreferences implements SharedPreferences {
     private static final String TAG = "SharedFirebasePrefs";
 
     /**
+     * The placeholder in {@link #sPathPattern} for the preferences' names
+     */
+    private static final String NAME_PLACEHOLDER = "$name";
+
+    /**
+     * The placeholder in {@link #sPathPattern} for the user's id
+     */
+    private static final String UID_PLACEHOLDER = "$uid";
+
+    /**
      * The instances
      */
     private static Map<String, SharedFirebasePreferences> sInstances = new HashMap<>();
+
+    /**
+     * The pattern for the paths to the roots of the preferences
+     */
+    private static String sPathPattern = String.format(Locale.ENGLISH, "/shared_prefs/%s/%s", UID_PLACEHOLDER, NAME_PLACEHOLDER);
 
     /**
      * The wrapped {@link SharedPreferences}
@@ -80,28 +97,35 @@ public class SharedFirebasePreferences implements SharedPreferences {
      * @see Context#MODE_PRIVATE
      */
     public synchronized static SharedFirebasePreferences getInstance(Context con, String name, int mode) {
+        return getInstance(con, name, mode, FirebaseDatabase.getInstance());
+    }
+
+    /**
+     * Removes all character forbidden for firebase paths
+     *
+     * @param s the string to sanitize
+     * @return the sanitized string
+     */
+    private static String sanitizeString(String s) {
+        return s.replace('.', '-').replace('#', '-').replace('$', '-').replace('[', '-').replace(']', '-');
+    }
+
+    /**
+     * Returns the default root for the given name
+     *
+     * @param name the name
+     * @param db   the {@link FirebaseDatabase} to use
+     * @return the {@link DatabaseReference} for the root
+     */
+    private static DatabaseReference getRoot(String name, FirebaseDatabase db) {
         // Check if any user is signed in
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
             throw new IllegalStateException("No user signed in with firebase");
         }
 
-        // Get the instance
-        return getInstance(con, name, mode, FirebaseDatabase.getInstance()
-                .getReference(sanatizeString("shared_prefs"))
-                .child(sanatizeString(user.getUid()))
-                .child(sanatizeString(name)));
-
-    }
-
-    /**
-     * Removes all character forbidden for firebase paths
-     *
-     * @param s the string to sanatize
-     * @return the sanatized string
-     */
-    private static String sanatizeString(String s) {
-        return s.replace('.', '-').replace('#', '-').replace('$', '-').replace('[', '-').replace(']', '-');
+        return db.getReference(sanitizeString(sPathPattern.
+                replace(UID_PLACEHOLDER, user.getUid()).replace(NAME_PLACEHOLDER, name)));
     }
 
     /**
@@ -110,19 +134,30 @@ public class SharedFirebasePreferences implements SharedPreferences {
      * @param con  a {@link Context}
      * @param name the preferences names. If the name already exists as local preferences, the data will be pushed to Firebase
      * @param mode the mode
-     * @param root the {@link DatabaseReference} used to store the preferences
+     * @param db   the {@link FirebaseDatabase} to use
      * @return the instance
      * @see Context#MODE_PRIVATE
      */
-    public synchronized static SharedFirebasePreferences getInstance(Context con, String name, int mode, DatabaseReference root) {
+    public synchronized static SharedFirebasePreferences getInstance(Context con, String name, int mode, FirebaseDatabase db) {
         // Check if we already have a instance, create new one if not
         if (!sInstances.containsKey(name)) {
-            sInstances.put(name, new SharedFirebasePreferences(con.getSharedPreferences(name, mode), root));
+            sInstances.put(name, new SharedFirebasePreferences(con.getSharedPreferences(name, mode), getRoot(name, db)));
         }
 
         // Return the singleton
         return sInstances.get(name);
 
+    }
+
+    /**
+     * Returns the default instance from {@link PreferenceManager}
+     *
+     * @param con a {@link Context}
+     * @return the instance
+     * @see Context#MODE_PRIVATE
+     */
+    public synchronized static SharedFirebasePreferences getDefaultInstance(Context con) {
+        return (SharedFirebasePreferences) PreferenceManager.getDefaultSharedPreferences(new SharedFirebasePreferencesContextWrapper(con));
     }
 
     /**
