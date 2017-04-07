@@ -21,9 +21,11 @@ import sharefirebasepreferences.crysxd.de.lib.SharedFirebasePreferences;
 import sharefirebasepreferences.crysxd.de.lib.SharedFirebasePreferencesContextWrapper;
 
 
-public class TestActivity extends AppCompatActivity implements FirebaseAuth.AuthStateListener {
+public class TestActivity extends AppCompatActivity implements FirebaseAuth.AuthStateListener, SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final String TAG = "activity";
+
+    private SharedFirebasePreferences mPreferences;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -53,6 +55,30 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (mPreferences != null) {
+            mPreferences.keepSynced(true);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mPreferences != null) {
+            mPreferences.keepSynced(false);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mPreferences != null) {
+            mPreferences.unregisterOnSharedPreferenceChangeListener(this);
+        }
+    }
+
+    @Override
     protected void attachBaseContext(Context newBase) {
         super.attachBaseContext(new SharedFirebasePreferencesContextWrapper(newBase));
     }
@@ -63,6 +89,9 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
         if (firebaseAuth.getCurrentUser() != null) {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             if (prefs instanceof SharedFirebasePreferences) {
+                mPreferences = (SharedFirebasePreferences) prefs;
+                mPreferences.keepSynced(true);
+                mPreferences.registerOnSharedPreferenceChangeListener(this);
                 ((SharedFirebasePreferences) prefs).pull().addOnFetchCompleteListener(new SharedFirebasePreferences.OnFetchCompleteListener() {
                     @Override
                     public void onFetchSucceeded(SharedFirebasePreferences preferences) {
@@ -82,6 +111,11 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
     private void showView() {
         getFragmentManager().beginTransaction().replace(R.id.view, new PreferenceFragment()).commitAllowingStateLoss();
         findViewById(R.id.progessBar).setVisibility(View.GONE);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        showView();
     }
 
     public static class PreferenceFragment extends android.preference.PreferenceFragment {

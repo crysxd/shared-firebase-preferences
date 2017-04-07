@@ -54,6 +54,11 @@ public class SharedFirebasePreferences implements SharedPreferences {
     private DatabaseReference mRoot;
 
     /**
+     * The {@link SyncAdapter} to keep the database and the local files in sync
+     */
+    private SyncAdapter mSyncAdapter;
+
+    /**
      * Creates a new instance
      *
      * @param cache the wrapped {@link SharedPreferences}
@@ -62,6 +67,7 @@ public class SharedFirebasePreferences implements SharedPreferences {
     protected SharedFirebasePreferences(SharedPreferences cache, DatabaseReference root) {
         mCache = cache;
         mRoot = root;
+        mSyncAdapter = new SyncAdapter(this);
     }
 
     /**
@@ -136,6 +142,21 @@ public class SharedFirebasePreferences implements SharedPreferences {
                 Log.e(TAG, "Fetch of " + getRoot().toString() + " failed", e);
             }
         });
+    }
+
+    /**
+     * Keeps the {@link SharedPreferences} in sync with the firebase database. This requires a active
+     * connection to the database and should not be used in background.
+     *
+     * @param b true to enable syncing, false to disbale
+     */
+    public void keepSynced(boolean b) {
+        mRoot.keepSynced(b);
+        if (b) {
+            mRoot.addValueEventListener(mSyncAdapter);
+        } else {
+            mRoot.removeEventListener(mSyncAdapter);
+        }
     }
 
     /**
@@ -342,6 +363,37 @@ public class SharedFirebasePreferences implements SharedPreferences {
         public void apply() {
             mWrapped.apply();
             mPrefs.push();
+        }
+    }
+
+    /**
+     * Syncs the database and the shared preferences while active
+     */
+    public static class SyncAdapter implements ValueEventListener {
+
+        /**
+         * The {@link SharedFirebasePreferences} to keep in sync
+         */
+        private SharedFirebasePreferences mPreferences;
+
+        /**
+         * Creates a new instance
+         *
+         * @param preferences the {@link SharedFirebasePreferences} to keep in sync
+         */
+        public SyncAdapter(SharedFirebasePreferences preferences) {
+            mPreferences = preferences;
+
+        }
+
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            mPreferences.pull();
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+            Log.e(TAG, "Error while syncing", databaseError.toException());
         }
     }
 
