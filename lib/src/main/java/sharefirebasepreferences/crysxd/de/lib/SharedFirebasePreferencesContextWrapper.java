@@ -21,6 +21,6 @@ public class SharedFirebasePreferencesContextWrapper extends ContextWrapper {
 
     @Override
     public SharedPreferences getSharedPreferences(String name, int mode) {
-        return SharedFirebasePreferences.getInstance(name);
+        return SharedFirebasePreferences.getInstance(this.getBaseContext(), name, mode);
     }
 }

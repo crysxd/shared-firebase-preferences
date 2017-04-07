@@ -1,14 +1,15 @@
 package sharefirebasepreferences.crysxd.de.lib;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
-import android.os.Handler;
-import android.os.HandlerThread;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.annotation.VisibleForTesting;
 import android.util.Log;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -19,189 +20,184 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import static android.os.AsyncTask.execute;
 
 /**
- * A {@link SharedPreferences} implementation storing the data in the Firebase realtime database.
- * As default, all sharedpreferences are stored under /shared-preferences in your Firebase database.
- * Use {@link #setDatabaseRoot(String)} to modify the root reference of the shared preferences. The root
- * will contain a child for each user under which children for all different preferences will be stored.
- * <p>
- * You can user {@link #getInstance(String)} according to {@link Context#getSharedPreferences(String, int)}.
- * <p>
- * please note that the preferences are not instantly synced with other devices but uploaded when a edit
- * is completed and downloaded when initialised.
- * <p>
- * It is strongly recommended to set {@link FirebaseDatabase#setPersistenceEnabled(boolean)} to true
- * in order to ensure the preferences are functional when the device is offline.
+ * A {@link SharedPreferences} implementation which syncs all data with firebase. Use {@link #getInstance(Context, String, int)}
+ * to receive a instance
  */
-public class SharedFirebasePreferences implements SharedPreferences, ValueEventListener {
+@SuppressWarnings("WeakerAccess")
+public class SharedFirebasePreferences implements SharedPreferences {
 
     /**
      * The log tag
      */
-    private static final String TAG = "FirebasePreferences";
+    private static final String TAG = "SharedFirebasePrefs";
 
     /**
-     * A static map with all singleton instances
+     * The instances
      */
     private static Map<String, SharedFirebasePreferences> sInstances = new HashMap<>();
 
     /**
-     * The currently used root
+     * The wrapped {@link SharedPreferences}
      */
-    private static String sRoot = "/shared-preferences";
+    private SharedPreferences mCache;
 
     /**
-     * The listeners
+     * The {@link DatabaseReference} which is used for storing
      */
-    private List<OnSharedPreferenceChangeListener> mListener = new ArrayList<>();
+    private DatabaseReference mRoot;
 
     /**
-     * The root referece for this preferences
-     */
-    private DatabaseReference mReference;
-
-    /**
-     * A recently occured error
-     */
-    private DatabaseError mError;
-
-    /**
-     * A flag to remeber whether we cached the data
-     */
-    private Map<String, Object> mCache;
-
-    /**
-     * The executor to await async requests
-     */
-    private Executor mExecutor = Executors.newSingleThreadExecutor();
-
-    /**
-     * Flag to check whether the cache is currently build
-     */
-    private boolean mCaching;
-
-    /**
-     * The Executor
-     */
-    private HandlerThread thread = new HandlerThread("firebase-db");
-
-
-    protected SharedFirebasePreferences(DatabaseReference reference) {
-        mReference = reference;
-        thread.start();
-    }
-
-    public synchronized static SharedFirebasePreferences getInstance(String name) {
-        return getInstance(FirebaseDatabase.getInstance(), name);
-    }
-
-    public synchronized static SharedFirebasePreferences getInstance(FirebaseDatabase db, String name) {
-        if (!sInstances.containsKey(name)) {
-            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user == null) {
-                throw new IllegalStateException("User must be signed in at Firebase");
-            }
-            name = name.replace('.', '-').replace('$', '-').replace('#', '-').replace('[', '-').replace(']', '-');
-            sInstances.put(name, new SharedFirebasePreferences(db.getReference(sRoot).child(user.getUid()).child(name)));
-        }
-        return sInstances.get(name);
-    }
-
-    @VisibleForTesting
-    public static void inject(String name, SharedFirebasePreferences instance) {
-        sInstances.put(name, instance);
-    }
-
-    public void setDatabaseRoot(String root) {
-        sRoot = root;
-    }
-
-    private synchronized Object getValue(String key, Object backup) {
-        Object hit = this.mCache.get(key);
-        return hit != null ? hit : backup;
-    }
-
-    /**
-     * Loads the data from firebase into the cache
+     * Creates a new instance
      *
-     * @throws RuntimeException if the operation is interrupted or the database read failed
+     * @param cache the wrapped {@link SharedPreferences}
+     * @param root  the {@link DatabaseReference} used for storing
      */
-    private synchronized void loadCache() throws RuntimeException {
-        try {
-            if (mCache == null) {
-                if (mCaching) {
-                    this.wait();
-                } else {
-                    mCaching = true;
-                    mCache = new HashMap<>();
-                    mReference.addValueEventListener(SharedFirebasePreferences.this);
-                    mError = null;
-                    Log.i(TAG, "Loading preferences into cache");
-                    mCaching = false;
-                }
+    protected SharedFirebasePreferences(SharedPreferences cache, DatabaseReference root) {
+        mCache = cache;
+        mRoot = root;
+    }
 
-                if (mError != null) {
-                    throw new RuntimeException(mError.toException());
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    /**
+     * Returns a instance for the given name
+     *
+     * @param con  a {@link Context}
+     * @param name the preferences names
+     * @param mode the mode
+     * @return the instance
+     * @see Context#MODE_PRIVATE
+     */
+    public synchronized static SharedFirebasePreferences getInstance(Context con, String name, int mode) {
+        // Check if any user is signed in
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            throw new IllegalStateException("No user signed in with firebase");
         }
+
+        // Get the instance
+        return getInstance(con, name, mode, FirebaseDatabase.getInstance()
+                .getReference(sanatizeString("shared_prefs"))
+                .child(sanatizeString(user.getUid()))
+                .child(sanatizeString(name)));
+
+    }
+
+    /**
+     * Removes all character forbidden for firebase paths
+     *
+     * @param s the string to sanatize
+     * @return the sanatized string
+     */
+    private static String sanatizeString(String s) {
+        return s.replace('.', '-').replace('#', '-').replace('$', '-').replace('[', '-').replace(']', '-');
+    }
+
+    /**
+     * Returns a instance for the given name
+     *
+     * @param con  a {@link Context}
+     * @param name the preferences names. If the name already exists as local preferences, the data will be pushed to Firebase
+     * @param mode the mode
+     * @param root the {@link DatabaseReference} used to store the preferences
+     * @return the instance
+     * @see Context#MODE_PRIVATE
+     */
+    public synchronized static SharedFirebasePreferences getInstance(Context con, String name, int mode, DatabaseReference root) {
+        // Check if we already have a instance, create new one if not
+        if (!sInstances.containsKey(name)) {
+            sInstances.put(name, new SharedFirebasePreferences(con.getSharedPreferences(name, mode), root));
+        }
+
+        // Return the singleton
+        return sInstances.get(name);
+
+    }
+
+    /**
+     * Fetches the latest data from Firebase
+     *
+     * @return the {@link FetchTask}
+     */
+    public FetchTask fetch() {
+        return new FetchTask(this).addOnFetchCompleteListener(new OnFetchCompleteListener() {
+            @Override
+            public void onFetchSucceeded(SharedFirebasePreferences preferences) {
+                Log.i(TAG, "Fetch of " + getRoot().toString() + " succeeded");
+            }
+
+            @Override
+            public void onFetchFailed(Exception e) {
+                Log.e(TAG, "Fetch of " + getRoot().toString() + " failed", e);
+            }
+        });
+    }
+
+    /**
+     * Pushed the current local data to Firebase
+     *
+     * @return the {@link Task}
+     */
+    public Task<Void> push() {
+        return new PushTask(this).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.e(TAG, "Push of " + getRoot().toString() + " failed", e);
+
+            }
+        }).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void aVoid) {
+                Log.i(TAG, "Push of " + getRoot().toString() + " succeeded");
+
+            }
+        });
     }
 
     @Override
-    public synchronized Map<String, ?> getAll() {
-        loadCache();
-        return new HashMap<>(mCache);
+    public Map<String, ?> getAll() {
+        return mCache.getAll();
     }
 
     @Nullable
     @Override
-    public synchronized String getString(String s, @Nullable String s1) {
-        return (String) getValue(s, s1);
+    public String getString(String s, @Nullable String s1) {
+        return mCache.getString(s, s1);
     }
 
     @Nullable
     @Override
-    @SuppressWarnings("unchecked")
-    public synchronized Set<String> getStringSet(String s, @Nullable Set<String> set) {
-        return new HashSet<>((List<String>) getValue(s, set));
+    public Set<String> getStringSet(String s, @Nullable Set<String> set) {
+        return mCache.getStringSet(s, set);
     }
 
     @Override
-    public synchronized int getInt(String s, int i) {
-        return (int) getValue(s, i);
+    public int getInt(String s, int i) {
+        return mCache.getInt(s, i);
     }
 
     @Override
-    public synchronized long getLong(String s, long l) {
-        return (long) getValue(s, l);
+    public long getLong(String s, long l) {
+        return mCache.getLong(s, l);
     }
 
     @Override
-    public synchronized float getFloat(String s, float v) {
-        return (float) getValue(s, v);
+    public float getFloat(String s, float v) {
+        return mCache.getFloat(s, v);
     }
 
     @Override
-    public synchronized boolean getBoolean(String s, boolean b) {
-        return (boolean) getValue(s, b);
+    public boolean getBoolean(String s, boolean b) {
+        return mCache.getBoolean(s, b);
     }
 
     @Override
-    public synchronized boolean contains(String s) {
-        loadCache();
-        return this.getValue(s, null) != null;
+    public boolean contains(String s) {
+        return mCache.contains(s);
     }
 
     @Override
@@ -210,160 +206,324 @@ public class SharedFirebasePreferences implements SharedPreferences, ValueEventL
     }
 
     @Override
-    public synchronized void registerOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener onSharedPreferenceChangeListener) {
-        mListener.add(onSharedPreferenceChangeListener);
+    public void registerOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener onSharedPreferenceChangeListener) {
+        mCache.registerOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
     }
 
     @Override
-    public synchronized void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener onSharedPreferenceChangeListener) {
-        mListener.remove(onSharedPreferenceChangeListener);
-    }
-
-    @Override
-    public synchronized void onDataChange(DataSnapshot dataSnapshot) {
-        mCache.clear();
-        for (DataSnapshot d : dataSnapshot.getChildren()) {
-            d.getValue();
-            mCache.put(d.getKey(), d.getValue());
-        }
-        this.notifyAll();
-    }
-
-    @Override
-    public synchronized void onCancelled(DatabaseError databaseError) {
-        mError = databaseError;
-        this.notifyAll();
-
-    }
-
-    private void dispatchPreferenceChanged(Map<String, Object> old, Map<String, Object> current) {
-        // Delete
-        for (String key : current.keySet()) {
-            if (!old.containsKey(key)) {
-                dispatchPreferenceChanged(key, null);
-            }
-        }
-
-        // Add
-        for (String key : old.keySet()) {
-            if (!current.containsKey(key)) {
-                dispatchPreferenceChanged(key, old.get(key));
-            }
-        }
-
-        // Update
-        for (String key : current.keySet()) {
-            if (old.containsKey(key) && !old.get(key).equals(current.get(key))) {
-                dispatchPreferenceChanged(key, old.get(key));
-            }
-        }
-    }
-
-    private void dispatchPreferenceChanged(String key, Object o) {
-        for (OnSharedPreferenceChangeListener l : mListener) {
-            try {
-                l.onSharedPreferenceChanged(this, key);
-            } catch (Exception e) {
-                Log.e(TAG, "Error while notifying listener", e);
-            }
-        }
+    public void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener onSharedPreferenceChangeListener) {
+        mCache.unregisterOnSharedPreferenceChangeListener(onSharedPreferenceChangeListener);
     }
 
     /**
-     * A {@link Editor} for {@link SharedFirebasePreferences}
+     * Returns the {@link SharedPreferences} which is used as local cached
+     *
+     * @return the local cache
+     */
+    protected SharedPreferences getCache() {
+        return mCache;
+    }
+
+    /**
+     * Returns the {@link DatabaseReference}  which is the root of this preferences
+     *
+     * @return the root
+     */
+    protected DatabaseReference getRoot() {
+        return mRoot;
+    }
+
+    /**
+     * A listener to get notified about fetch results
+     */
+    public interface OnFetchCompleteListener {
+
+        /**
+         * Called when the fetch was successful
+         *
+         * @param preferences the updated {@link SharedFirebasePreferences}
+         */
+        void onFetchSucceeded(SharedFirebasePreferences preferences);
+
+        /**
+         * Called when the fetch failed
+         *
+         * @param e the occured {@link Exception}
+         */
+        void onFetchFailed(Exception e);
+
+    }
+
+    /**
+     * A editor pushing changed to firebase
      */
     public static class Editor implements SharedPreferences.Editor {
 
         /**
-         * The cache which is edited
+         * The {@link android.content.SharedPreferences.Editor} handling the edit process
          */
-        private Map<String, Object> mCache;
+        private SharedPreferences.Editor mWrapped;
 
         /**
-         * The {@link SharedFirebasePreferences} currently being edited
+         * The {@link SharedFirebasePreferences} being edited
          */
-        private SharedFirebasePreferences mPreferences;
+        private SharedFirebasePreferences mPrefs;
 
         /**
-         * Creates a new instance to edito the given preferences
+         * Creates a new instance
          *
-         * @param preferences the {@link SharedFirebasePreferences} to edit
+         * @param prefs the {@link SharedFirebasePreferences} being edited
          */
-        Editor(SharedFirebasePreferences preferences) {
-            mCache = new HashMap<>(preferences.mCache);
-            mPreferences = preferences;
+        protected Editor(SharedFirebasePreferences prefs) {
+            mWrapped = prefs.getCache().edit();
+            mPrefs = prefs;
         }
 
         @Override
         public SharedPreferences.Editor putString(String s, @Nullable String s1) {
-            mCache.put(s, s1);
-            return this;
+            return mWrapped.putString(s, s1);
         }
 
         @Override
         public SharedPreferences.Editor putStringSet(String s, @Nullable Set<String> set) {
-            mCache.put(s, set == null ? null : new ArrayList<>(set));
-            return this;
+            return mWrapped.putStringSet(s, set);
         }
 
         @Override
         public SharedPreferences.Editor putInt(String s, int i) {
-            mCache.put(s, i);
-            return this;
+            return mWrapped.putInt(s, i);
         }
 
         @Override
         public SharedPreferences.Editor putLong(String s, long l) {
-            mCache.put(s, l);
-            return this;
+            return mWrapped.putLong(s, l);
         }
 
         @Override
         public SharedPreferences.Editor putFloat(String s, float v) {
-            mCache.put(s, v);
-            return this;
+            return mWrapped.putFloat(s, v);
         }
 
         @Override
         public SharedPreferences.Editor putBoolean(String s, boolean b) {
-            mCache.put(s, b);
-            return this;
+            return mWrapped.putBoolean(s, b);
         }
 
         @Override
         public SharedPreferences.Editor remove(String s) {
-            mCache.remove(s);
-            return this;
+            return mWrapped.remove(s);
         }
 
         @Override
         public SharedPreferences.Editor clear() {
-            mCache.clear();
-            return this;
+            return mWrapped.clear();
         }
 
         @Override
         public boolean commit() {
-            Map<String, Object> beforeChange = new HashMap<>(mPreferences.mCache);
-            mPreferences.mReference.updateChildren(mCache);
-            mPreferences.dispatchPreferenceChanged(beforeChange, mCache);
-            mPreferences.mCache = mCache;
-
-            // Return success
-            return true;
+            if (mWrapped.commit()) {
+                mPrefs.push();
+                return true;
+            } else {
+                return false;
+            }
         }
 
         @Override
         public void apply() {
-            new AsyncTask<Void, Void, Void>() {
+            mWrapped.apply();
+            mPrefs.push();
+        }
+    }
 
-                @Override
-                protected Void doInBackground(Void... voids) {
-                    commit();
-                    return null;
+    /**
+     * A task fetching the latest values from firebase
+     */
+    public static class FetchTask implements ValueEventListener {
+
+        /**
+         * The {@link SharedFirebasePreferences} which should be fetched from Firebase
+         */
+        private SharedFirebasePreferences mPreferences;
+
+        /**
+         * The listeners
+         */
+        private List<OnFetchCompleteListener> mListener = new ArrayList<>();
+
+        /**
+         * Creates a new instance
+         *
+         * @param preferences the {@link SharedFirebasePreferences} which should be fetched from Firebase
+         */
+        public FetchTask(SharedFirebasePreferences preferences) {
+            mPreferences = preferences;
+            mPreferences.getRoot().addListenerForSingleValueEvent(this);
+
+        }
+
+        /**
+         * Adds a {@link OnFetchCompleteListener} to get informed when the fetch is completed
+         *
+         * @param listener the {@link OnFetchCompleteListener}
+         * @return this instance
+         */
+        public FetchTask addOnFetchCompleteListener(@NonNull OnFetchCompleteListener listener) {
+            mListener.add(listener);
+            return this;
+        }
+
+
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            // Copy values into cache to prevent values to be instantly pushed to Firebase again
+            try {
+                SharedPreferences.Editor e = mPreferences.getCache().edit().clear();
+                for (DataSnapshot s : dataSnapshot.getChildren()) {
+                    Object v = s.getValue();
+                    String k = s.getKey();
+                    if (v instanceof String) {
+                        e.putString(k, (String) v);
+                    } else if (v instanceof Long) {
+                        e.putLong(k, (Long) v);
+                    } else if (v instanceof Integer) {
+                        e.putInt(k, (Integer) v);
+                    } else if (v instanceof Boolean) {
+                        e.putBoolean(k, (Boolean) v);
+                    } else if (v instanceof Float) {
+                        e.putFloat(k, (Float) v);
+                    } else if (v instanceof Set) {
+                        //noinspection unchecked
+                        e.putStringSet(k, (Set<String>) v);
+                    }
+                }
+                e.apply();
+            } catch (Exception e) {
+                Log.e(TAG, "Error while processing fetched data", e);
+                dispatchFetchFailed(e);
+            }
+
+            // Dispatch event
+            dispatchFetchSucceeded();
+        }
+
+        /**
+         * Dispatches the {@link OnFetchCompleteListener#onFetchFailed(Exception)}
+         * event for all listeners
+         */
+        private void dispatchFetchFailed(Exception e) {
+            for (OnFetchCompleteListener l : mListener) {
+                try {
+                    l.onFetchFailed(e);
+
+                } catch (Exception e2) {
+                    Log.e(TAG, "Error while dispatching onFetchFailed() event", e);
 
                 }
-            };
+            }
+        }
+
+        /**
+         * Dispatches the {@link OnFetchCompleteListener#onFetchSucceeded(SharedFirebasePreferences)}
+         * event for all listeners
+         */
+        private void dispatchFetchSucceeded() {
+            for (OnFetchCompleteListener l : mListener) {
+                try {
+                    l.onFetchSucceeded(mPreferences);
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Error while dispatching onFetchSucceeded() event", e);
+
+                }
+            }
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+            dispatchFetchFailed(databaseError.toException());
+        }
+    }
+
+    /**
+     * A {@link Task} pushing the data of the given {@link SharedFirebasePreferences}
+     */
+    public static class PushTask extends Task<Void> {
+
+        /**
+         * The update task
+         */
+        private final Task<Void> mTask;
+
+        /**
+         * Creates a new instance and pushes the data of the given preferences
+         *
+         * @param preferences the {@link SharedFirebasePreferences} to be pushed
+         */
+        public PushTask(SharedFirebasePreferences preferences) {
+            mTask = preferences.getRoot().updateChildren(new HashMap<>(preferences.getAll()));
+        }
+
+        @Override
+        public boolean isComplete() {
+            return mTask.isComplete();
+        }
+
+        @Override
+        public boolean isSuccessful() {
+            return mTask.isSuccessful();
+        }
+
+        @Override
+        public Void getResult() {
+            return mTask.getResult();
+        }
+
+        @Override
+        public <X extends Throwable> Void getResult(@NonNull Class<X> aClass) throws X {
+            return mTask.getResult(aClass);
+        }
+
+        @Nullable
+        @Override
+        public Exception getException() {
+            return mTask.getException();
+        }
+
+        @NonNull
+        @Override
+        public Task<Void> addOnSuccessListener(@NonNull OnSuccessListener<? super Void> onSuccessListener) {
+            return mTask.addOnSuccessListener(onSuccessListener);
+        }
+
+        @NonNull
+        @Override
+        public Task<Void> addOnSuccessListener(@NonNull Executor executor, @NonNull OnSuccessListener<? super Void> onSuccessListener) {
+            return mTask.addOnSuccessListener(executor, onSuccessListener);
+        }
+
+        @NonNull
+        @Override
+        public Task<Void> addOnSuccessListener(@NonNull Activity activity, @NonNull OnSuccessListener<? super Void> onSuccessListener) {
+            return mTask.addOnSuccessListener(activity, onSuccessListener);
+        }
+
+        @NonNull
+        @Override
+        public Task<Void> addOnFailureListener(@NonNull OnFailureListener onFailureListener) {
+            return mTask.addOnFailureListener(onFailureListener);
+        }
+
+        @NonNull
+        @Override
+        public Task<Void> addOnFailureListener(@NonNull Executor executor, @NonNull OnFailureListener onFailureListener) {
+            return mTask.addOnFailureListener(executor, onFailureListener);
+        }
+
+        @NonNull
+        @Override
+        public Task<Void> addOnFailureListener(@NonNull Activity activity, @NonNull OnFailureListener onFailureListener) {
+            return mTask.addOnFailureListener(activity, onFailureListener);
         }
     }
 }

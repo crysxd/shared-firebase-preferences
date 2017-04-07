@@ -1,21 +1,23 @@
 package sharefirebasepreferences.crysxd.de.sharedfirebasepreferences;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 
+import sharefirebasepreferences.crysxd.de.lib.SharedFirebasePreferences;
 import sharefirebasepreferences.crysxd.de.lib.SharedFirebasePreferencesContextWrapper;
 
 
@@ -26,6 +28,8 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_test);
 
         FirebaseApp.initializeApp(this);
         FirebaseAuth.getInstance().addAuthStateListener(this);
@@ -57,8 +61,27 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
     @Override
     public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
         if (firebaseAuth.getCurrentUser() != null) {
-            getFragmentManager().beginTransaction().add(new PreferenceFragment(), "preferences").commitAllowingStateLoss();
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+            if (prefs instanceof SharedFirebasePreferences) {
+                ((SharedFirebasePreferences) prefs).fetch().addOnFetchCompleteListener(new SharedFirebasePreferences.OnFetchCompleteListener() {
+                    @Override
+                    public void onFetchSucceeded(SharedFirebasePreferences preferences) {
+                        showView();
+                    }
+
+                    @Override
+                    public void onFetchFailed(Exception e) {
+                        showView();
+                        Toast.makeText(TestActivity.this, "Fetch failed", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         }
+    }
+
+    private void showView() {
+        getFragmentManager().beginTransaction().replace(R.id.view, new PreferenceFragment()).commitAllowingStateLoss();
+        findViewById(R.id.progessBar).setVisibility(View.GONE);
     }
 
     public static class PreferenceFragment extends android.preference.PreferenceFragment {
