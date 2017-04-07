@@ -26,7 +26,7 @@ dependencies {
 As this library uses Firebase, please follow [this](https://firebase.google.com/docs/android/setup) guide to setup Firebase in your project. Please note that your users must be signed in with Firebase to use the `SharedFirebasePreferences` properly (you still can use anonymous login at Firebase, but this would destroy the basis for this library), sou you should also follow [this](https://firebase.google.com/docs/auth/android/start/) and setup a working login for your users.
 
 # Get a Instance
-To get a instance of `SharedFirebasePreferences`, simply call `SharedFirebasePreferences.getInstance(this, "app_settings", Context.MODE_PRIVATE)` where `this` is a `Context`and `app_settings`is the name of the preferences. You can also call `SharedFirebasePreferences.getDefaultInstance(this)` to get the default instance e.g. used by `PreferenceFragment`.
+To get a instance of `SharedFirebasePreferences`, simply call `SharedFirebasePreferences.getInstance(this, "app_settings", Context.MODE_PRIVATE)` where `this` is a `Context`and `app_settings`is the name of the preferences. You can also call `SharedFirebasePreferences.getDefaultInstance(this)` to get the default instance e.g. used by `PreferenceFragment`. Please note that `FirebaseAuth.getInstance().getCurrentUser()` must not be null when getting an instance! This means a user must be signed in with Firebase.
 
 # Sync Data
 Simply call `SharedFirebasePreferences#pull()` to get the lastest values from the server. Note that you can add a `OnFetchCompleteListener`to the returned object to get updates about the pulling e.g. when it is completed. You can use `SharedFirebasePreferences#push()` to push the local data to the server. This method returns a `Task<Void>` to which listeners can be attached. Also calling `prefs.edit().put("greeting", "Hello World!").apply()` or `prefs.edit().put("greeting", "Hello World!").commit()` will automatically push the changes to the server.
@@ -44,3 +44,9 @@ protected void attachBaseContext(Context newBase) {
  ```
 
 Then simply attach the `PreferenceFragment` to the activity as usual, it will use a `SharedFirebasePreference` instance to store and receive the preferences!
+
+# Database Strucutre
+
+# Securing your Data
+
+# 
