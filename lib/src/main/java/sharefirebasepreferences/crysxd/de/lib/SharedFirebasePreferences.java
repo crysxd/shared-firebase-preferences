@@ -19,7 +19,9 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -400,9 +402,9 @@ public class SharedFirebasePreferences implements SharedPreferences {
                         e.putBoolean(k, (Boolean) v);
                     } else if (v instanceof Float) {
                         e.putFloat(k, (Float) v);
-                    } else if (v instanceof Set) {
+                    } else if (v instanceof List) {
                         //noinspection unchecked
-                        e.putStringSet(k, (Set<String>) v);
+                        e.putStringSet(k, new HashSet<>((List<String>) v));
                     }
                 }
                 e.apply();
@@ -469,7 +471,17 @@ public class SharedFirebasePreferences implements SharedPreferences {
          * @param preferences the {@link SharedFirebasePreferences} to be pushed
          */
         public PushTask(SharedFirebasePreferences preferences) {
-            mTask = preferences.getRoot().updateChildren(new HashMap<>(preferences.getAll()));
+            // Replace sets with lists to use default firebase serialization
+            HashMap<String, Object> values = new HashMap<>(preferences.getAll());
+            for (String k : values.keySet()) {
+                if (values.get(k) instanceof Set) {
+                    //noinspection unchecked
+                    values.put(k, new ArrayList<>((Set<String>) values.get(k)));
+                }
+            }
+
+            // Start push
+            mTask = preferences.getRoot().updateChildren(values);
         }
 
         @Override
