@@ -11,4 +11,11 @@
         android:title="A Text"
         android:summary="This will be stored as edittext_preference" />
 
+    <ListPreference
+        android:key="list_preference"
+        android:title="A List"
+        android:entries="@array/entries_list_preference"
+        android:entryValues="@array/entryvalues_list_preference"
+        android:summary="This will be stored as list_preference" />
+
 </PreferenceScreen>
