@@ -43,7 +43,7 @@ protected void attachBaseContext(Context newBase) {
 }
  ```
 
-Then simply attach the `PreferenceFragment` to the activity as usual, it will use a `SharedFirebasePreference` instance to store and receive the preferences!
+Then simply attach the `PreferenceFragment` to the activity as usual, it will use a `SharedFirebasePreference` instance to store and receive the preferences! Changes made to the prefernces by the user will be instantely synced with the database.
 
 # Database Strucutre
 
