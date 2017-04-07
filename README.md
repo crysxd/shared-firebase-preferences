@@ -23,4 +23,4 @@ dependencies {
 }
 ```
 # Firebase Setup
-As this library uses Firebase, please follow this guide to setup Firebase in your project. Please note that your users must be signed in with Firebase to use the SharedFirebasePreferences properly (you still can use anonymous login at Firebase, but this would destroy the basis for this library)
+As this library uses Firebase, please follow [this](https://firebase.google.com/docs/android/setup) guide to setup Firebase in your project. Please note that your users must be signed in with Firebase to use the SharedFirebasePreferences properly (you still can use anonymous login at Firebase, but this would destroy the basis for this library), sou you should also follow [this](https://firebase.google.com/docs/auth/android/start/) and setup a working login for your users.
