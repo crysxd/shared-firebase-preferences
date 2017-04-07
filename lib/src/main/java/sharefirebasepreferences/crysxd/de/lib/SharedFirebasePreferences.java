@@ -281,42 +281,50 @@ public class SharedFirebasePreferences implements SharedPreferences {
 
         @Override
         public SharedPreferences.Editor putString(String s, @Nullable String s1) {
-            return mWrapped.putString(s, s1);
+            mWrapped.putString(s, s1);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor putStringSet(String s, @Nullable Set<String> set) {
-            return mWrapped.putStringSet(s, set);
+            mWrapped.putStringSet(s, set);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor putInt(String s, int i) {
-            return mWrapped.putInt(s, i);
+            mWrapped.putInt(s, i);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor putLong(String s, long l) {
-            return mWrapped.putLong(s, l);
+            mWrapped.putLong(s, l);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor putFloat(String s, float v) {
-            return mWrapped.putFloat(s, v);
+            mWrapped.putFloat(s, v);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor putBoolean(String s, boolean b) {
-            return mWrapped.putBoolean(s, b);
+            mWrapped.putBoolean(s, b);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor remove(String s) {
-            return mWrapped.remove(s);
+            mWrapped.remove(s);
+            return this;
         }
 
         @Override
         public SharedPreferences.Editor clear() {
-            return mWrapped.clear();
+            mWrapped.clear();
+            return this;
         }
 
         @Override
