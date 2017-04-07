@@ -19,7 +19,7 @@ allprojects {
 Add this to your app level build.gradle:
 ```
 dependencies {
-  compile 'com.github.User:Repo:Tag'
+  compile 'com.github.crysxd:SharedFirebasePreferences:v1.0.0'
 }
 ```
 # Firebase Setup
