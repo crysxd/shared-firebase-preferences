@@ -30,3 +30,17 @@ To get a instance of `SharedFirebasePreferences`, simply call `SharedFirebasePre
 
 # Sync Data
 Simply call `SharedFirebasePreferences#pull()` to get the lastest values from the server. Note that you can add a `OnFetchCompleteListener`to the returned object to get updates about the pulling e.g. when it is completed. You can use `SharedFirebasePreferences#push()` to push the local data to the server. This method returns a `Task<Void>` to which listeners can be attached. Also calling `prefs.edit().put("greeting", "Hello World!").apply()` or `prefs.edit().put("greeting", "Hello World!").commit()` will automatically push the changes to the server.
+
+You can use `SharedFirebasePreferences#keepSynced(true)` to keep the data in-sync with the server while the app is running. You will be informed about changes via the `SharedPreferences.OnSharedPreferenceChangeListener` attached to the preferences. Please remember to call `SharedFirebasePreferences#keepSynced(false)` when your app/activity enters the abckground!
+
+# Use with PreferenceFragment
+You must override the `attachBaseContext(Context newBase)`  method in the `Activity` hosting the `PreferenceFragment` to use `SharedFirebasePreferences` with it:
+
+```
+@Override
+protected void attachBaseContext(Context newBase) {
+    super.attachBaseContext(new SharedFirebasePreferencesContextWrapper(newBase));
+}
+ ```
+
+Then simply attach the `PreferenceFragment` to the activity as usual, it will use a `SharedFirebasePreference` instance to store and receive the preferences!
