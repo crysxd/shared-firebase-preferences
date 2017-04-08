@@ -1,4 +1,4 @@
-[![](https://jitpack.io/v/crysxd/SharedFirebasePreferences.svg)](https://jitpack.io/#crysxd/SharedFirebasePreferences)
+[![](https://jitpack.io/v/crysxd/shared-firebase-preferences.svg)](https://jitpack.io/#crysxd/shared-firebase-preferences)
 
 # About
 A implementation of `SharedPreferences` which syncs with Firebase database to keep your `SharedPreferences` in sync between multiple devices of one user and/or to back them up for app re-installs!
