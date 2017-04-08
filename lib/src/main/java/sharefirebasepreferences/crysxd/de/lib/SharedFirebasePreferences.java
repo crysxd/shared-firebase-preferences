@@ -166,7 +166,7 @@ public class SharedFirebasePreferences implements SharedPreferences {
      * @return the {@link PullTask}
      */
     public PullTask pull() {
-        return new PullTask(this).addOnFetchCompleteListener(new OnPullCompleteListener() {
+        return new PullTask(this).addOnPullCompleteListener(new OnPullCompleteListener() {
             @Override
             public void onPullSucceeded(SharedFirebasePreferences preferences) {
                 Log.i(TAG, "Fetch of " + getRoot().toString() + " succeeded");
@@ -423,7 +423,17 @@ public class SharedFirebasePreferences implements SharedPreferences {
 
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
-            mPreferences.pull();
+            new PullTask(mPreferences, dataSnapshot).addOnPullCompleteListener(new OnPullCompleteListener() {
+                @Override
+                public void onPullSucceeded(SharedFirebasePreferences preferences) {
+                    Log.i(TAG, "Synced data");
+                }
+
+                @Override
+                public void onPullFailed(Exception e) {
+                    Log.i(TAG, "Error while syncing data", e);
+                }
+            });
         }
 
         @Override
@@ -459,12 +469,25 @@ public class SharedFirebasePreferences implements SharedPreferences {
         }
 
         /**
+         * Creates a new instance
+         *
+         * @param preferences  the {@link SharedFirebasePreferences} which should be fetched from Firebase
+         * @param dataSnapshot the data snapshot from which the data should be pulled
+         */
+        public PullTask(SharedFirebasePreferences preferences, DataSnapshot dataSnapshot) {
+            mPreferences = preferences;
+            onDataChange(dataSnapshot);
+
+        }
+
+
+        /**
          * Adds a {@link OnPullCompleteListener} to get informed when the pull is completed
          *
          * @param listener the {@link OnPullCompleteListener}
          * @return this instance
          */
-        public PullTask addOnFetchCompleteListener(@NonNull OnPullCompleteListener listener) {
+        public PullTask addOnPullCompleteListener(@NonNull OnPullCompleteListener listener) {
             mListener.add(listener);
             return this;
         }

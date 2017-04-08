@@ -89,7 +89,7 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
             mPreferences = SharedFirebasePreferences.getDefaultInstance(this);
             mPreferences.keepSynced(true);
             mPreferences.registerOnSharedPreferenceChangeListener(this);
-            mPreferences.pull().addOnFetchCompleteListener(new SharedFirebasePreferences.OnPullCompleteListener() {
+            mPreferences.pull().addOnPullCompleteListener(new SharedFirebasePreferences.OnPullCompleteListener() {
                 @Override
                 public void onPullSucceeded(SharedFirebasePreferences preferences) {
                     showView();
