@@ -5,7 +5,7 @@ A implementation of `SharedPreferences` which syncs with Firebase database to ke
 
 The usage is pretty simple and straight forward if you have ever worked with `SharedPreferences`. You can also easily use them with `PreferenceFragment`.
 
-This project contains a exmaple app, take alook how you can use `SharedFirebasePreferences`!
+This project contains a exmaple app, take a look how you can use `SharedFirebasePreferences`!
 
 # Setup
 Add this to your project level build.gradle:
