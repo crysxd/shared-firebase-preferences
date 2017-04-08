@@ -89,14 +89,14 @@ public class TestActivity extends AppCompatActivity implements FirebaseAuth.Auth
             mPreferences = SharedFirebasePreferences.getDefaultInstance(this);
             mPreferences.keepSynced(true);
             mPreferences.registerOnSharedPreferenceChangeListener(this);
-            mPreferences.pull().addOnFetchCompleteListener(new SharedFirebasePreferences.OnFetchCompleteListener() {
+            mPreferences.pull().addOnFetchCompleteListener(new SharedFirebasePreferences.OnPullCompleteListener() {
                 @Override
-                public void onFetchSucceeded(SharedFirebasePreferences preferences) {
+                public void onPullSucceeded(SharedFirebasePreferences preferences) {
                     showView();
                 }
 
                 @Override
-                public void onFetchFailed(Exception e) {
+                public void onPullFailed(Exception e) {
                     showView();
                     Toast.makeText(TestActivity.this, "Fetch failed", Toast.LENGTH_SHORT).show();
                 }

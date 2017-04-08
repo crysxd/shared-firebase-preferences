@@ -166,14 +166,14 @@ public class SharedFirebasePreferences implements SharedPreferences {
      * @return the {@link PullTask}
      */
     public PullTask pull() {
-        return new PullTask(this).addOnFetchCompleteListener(new OnFetchCompleteListener() {
+        return new PullTask(this).addOnFetchCompleteListener(new OnPullCompleteListener() {
             @Override
-            public void onFetchSucceeded(SharedFirebasePreferences preferences) {
+            public void onPullSucceeded(SharedFirebasePreferences preferences) {
                 Log.i(TAG, "Fetch of " + getRoot().toString() + " succeeded");
             }
 
             @Override
-            public void onFetchFailed(Exception e) {
+            public void onPullFailed(Exception e) {
                 Log.e(TAG, "Fetch of " + getRoot().toString() + " failed", e);
             }
         });
@@ -293,21 +293,21 @@ public class SharedFirebasePreferences implements SharedPreferences {
     /**
      * A listener to get notified about pull results
      */
-    public interface OnFetchCompleteListener {
+    public interface OnPullCompleteListener {
 
         /**
          * Called when the pull was successful
          *
          * @param preferences the updated {@link SharedFirebasePreferences}
          */
-        void onFetchSucceeded(SharedFirebasePreferences preferences);
+        void onPullSucceeded(SharedFirebasePreferences preferences);
 
         /**
          * Called when the pull failed
          *
          * @param e the occured {@link Exception}
          */
-        void onFetchFailed(Exception e);
+        void onPullFailed(Exception e);
 
     }
 
@@ -445,7 +445,7 @@ public class SharedFirebasePreferences implements SharedPreferences {
         /**
          * The listeners
          */
-        private List<OnFetchCompleteListener> mListener = new ArrayList<>();
+        private List<OnPullCompleteListener> mListener = new ArrayList<>();
 
         /**
          * Creates a new instance
@@ -459,12 +459,12 @@ public class SharedFirebasePreferences implements SharedPreferences {
         }
 
         /**
-         * Adds a {@link OnFetchCompleteListener} to get informed when the pull is completed
+         * Adds a {@link OnPullCompleteListener} to get informed when the pull is completed
          *
-         * @param listener the {@link OnFetchCompleteListener}
+         * @param listener the {@link OnPullCompleteListener}
          * @return this instance
          */
-        public PullTask addOnFetchCompleteListener(@NonNull OnFetchCompleteListener listener) {
+        public PullTask addOnFetchCompleteListener(@NonNull OnPullCompleteListener listener) {
             mListener.add(listener);
             return this;
         }
@@ -504,32 +504,32 @@ public class SharedFirebasePreferences implements SharedPreferences {
         }
 
         /**
-         * Dispatches the {@link OnFetchCompleteListener#onFetchFailed(Exception)}
+         * Dispatches the {@link OnPullCompleteListener#onPullFailed(Exception)}
          * event for all listeners
          */
         private void dispatchFetchFailed(Exception e) {
-            for (OnFetchCompleteListener l : mListener) {
+            for (OnPullCompleteListener l : mListener) {
                 try {
-                    l.onFetchFailed(e);
+                    l.onPullFailed(e);
 
                 } catch (Exception e2) {
-                    Log.e(TAG, "Error while dispatching onFetchFailed() event", e);
+                    Log.e(TAG, "Error while dispatching onPullFailed() event", e);
 
                 }
             }
         }
 
         /**
-         * Dispatches the {@link OnFetchCompleteListener#onFetchSucceeded(SharedFirebasePreferences)}
+         * Dispatches the {@link OnPullCompleteListener#onPullSucceeded(SharedFirebasePreferences)}
          * event for all listeners
          */
         private void dispatchFetchSucceeded() {
-            for (OnFetchCompleteListener l : mListener) {
+            for (OnPullCompleteListener l : mListener) {
                 try {
-                    l.onFetchSucceeded(mPreferences);
+                    l.onPullSucceeded(mPreferences);
 
                 } catch (Exception e) {
-                    Log.e(TAG, "Error while dispatching onFetchSucceeded() event", e);
+                    Log.e(TAG, "Error while dispatching onPullSucceeded() event", e);
 
                 }
             }
