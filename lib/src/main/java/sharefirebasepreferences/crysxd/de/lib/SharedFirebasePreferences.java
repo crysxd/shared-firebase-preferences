@@ -140,8 +140,10 @@ public class SharedFirebasePreferences implements SharedPreferences {
      */
     public synchronized static SharedFirebasePreferences getInstance(Context con, String name, int mode, FirebaseDatabase db) {
         // Check if we already have a instance, create new one if not
+        // Get the prefs from Application to prevent a SharedfirebasePreferences instance is returned
+        // from a context wrapped
         if (!sInstances.containsKey(name)) {
-            sInstances.put(name, new SharedFirebasePreferences(con.getSharedPreferences(name, mode), getRoot(name, db)));
+            sInstances.put(name, new SharedFirebasePreferences(con.getApplicationContext().getSharedPreferences(name, mode), getRoot(name, db)));
         }
 
         // Return the singleton
@@ -169,12 +171,12 @@ public class SharedFirebasePreferences implements SharedPreferences {
         return new PullTask(this).addOnPullCompleteListener(new OnPullCompleteListener() {
             @Override
             public void onPullSucceeded(SharedFirebasePreferences preferences) {
-                Log.i(TAG, "Fetch of " + getRoot().toString() + " succeeded");
+                Log.i(TAG, "Pull of " + getRoot().toString() + " succeeded");
             }
 
             @Override
             public void onPullFailed(Exception e) {
-                Log.e(TAG, "Fetch of " + getRoot().toString() + " failed", e);
+                Log.e(TAG, "Pull of " + getRoot().toString() + " failed", e);
             }
         });
     }
