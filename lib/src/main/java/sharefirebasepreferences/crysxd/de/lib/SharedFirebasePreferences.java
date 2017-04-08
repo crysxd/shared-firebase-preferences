@@ -43,12 +43,12 @@ public class SharedFirebasePreferences implements SharedPreferences {
     /**
      * The placeholder in {@link #sPathPattern} for the preferences' names
      */
-    private static final String NAME_PLACEHOLDER = "$name";
+    public static final String NAME_PLACEHOLDER = "$name";
 
     /**
      * The placeholder in {@link #sPathPattern} for the user's id
      */
-    private static final String UID_PLACEHOLDER = "$uid";
+    public static final String UID_PLACEHOLDER = "$uid";
 
     /**
      * The instances
