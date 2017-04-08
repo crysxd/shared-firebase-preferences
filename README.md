@@ -31,7 +31,7 @@ To get a instance of `SharedFirebasePreferences`, simply call `SharedFirebasePre
 # Sync Data
 Simply call `SharedFirebasePreferences#pull()` to get the lastest values from the server. Note that you can add a `OnFetchCompleteListener`to the returned object to get updates about the pulling e.g. when it is completed. You can use `SharedFirebasePreferences#push()` to push the local data to the server. This method returns a `Task<Void>` to which listeners can be attached. Also calling `prefs.edit().put("greeting", "Hello World!").apply()` or `prefs.edit().put("greeting", "Hello World!").commit()` will automatically push the changes to the server.
 
-You can use `SharedFirebasePreferences#keepSynced(true)` to keep the data in-sync with the server while the app is running. You will be informed about changes via the `SharedPreferences.OnSharedPreferenceChangeListener` attached to the preferences. Please remember to call `SharedFirebasePreferences#keepSynced(false)` when your app/activity enters the abckground!
+You can use `SharedFirebasePreferences#keepSynced(true)` to keep the data in-sync with the server while the app is running. You will be informed about changes via the `SharedPreferences.OnSharedPreferenceChangeListener` attached to the preferences. Please remember to call `SharedFirebasePreferences#keepSynced(false)` when your app/activity enters the background!
 
 # Use with PreferenceFragment
 You must override the `attachBaseContext(Context newBase)`  method in the `Activity` hosting the `PreferenceFragment` to use `SharedFirebasePreferences` with it:
@@ -46,7 +46,28 @@ protected void attachBaseContext(Context newBase) {
 Then simply attach the `PreferenceFragment` to the activity as usual, it will use a `SharedFirebasePreference` instance to store and receive the preferences! Changes made to the prefernces by the user will be instantely synced with the database.
 
 # Database Strucutre
+As default the preferences are stored in your database at `/shared_prefs/$uid/$name` where `$uid` is the uid of the user signed in and `$name` is the name passed to `SharedFirebasePreferences.getInstance(Context, String, int)`. You can adjust this path by calling `SharedFirebasePreferences#setPathPattern(String)` like this:
+
+```
+SharedFirebasePreferences.setPathPattern(String.format(Locale.ENGLISH, "users/%s/shared_prefs/%s", UID_PLACEHOLDER, NAME_PLACEHOLDER));
+```
+Please note that the pattern is not applied to `SharedFirebasePreferences` instances already created with `SharedFirebasePreferences.getInstance(...)` in the past. All `.`, `#`, `$`, `[` and `]` int the path (including the name) will be replace with `-` in order to satisfy Firebase's requirements for paths in the database. This means the `SharedFirebasePrefernces` called `com.test.prefs` and `com-test-prefs` will be the same!
 
 # Securing your Data
+It is strongly recommended to secure the user's data in your Firebase database using rules. You can use these rules for the default path pattern:
 
-# 
+```
+{
+  "rules": {
+    ".read": "false",
+    ".write": "false",
+    "shared_prefs": {
+      "$uid": {
+        ".write": "$uid === auth.uid",
+        ".read": "$uid === auth.uid"
+      }
+    }
+  }
+}
+```
+This set of rules allows users only to read and write to their `/shared_prefs/$uid` node.
