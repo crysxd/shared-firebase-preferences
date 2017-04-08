@@ -36,20 +36,17 @@ import java.util.concurrent.Executor;
 public class SharedFirebasePreferences implements SharedPreferences {
 
     /**
-     * The log tag
-     */
-    private static final String TAG = "SharedFirebasePrefs";
-
-    /**
      * The placeholder in {@link #sPathPattern} for the preferences' names
      */
     public static final String NAME_PLACEHOLDER = "$name";
-
     /**
      * The placeholder in {@link #sPathPattern} for the user's id
      */
     public static final String UID_PLACEHOLDER = "$uid";
-
+    /**
+     * The log tag
+     */
+    private static final String TAG = "SharedFirebasePrefs";
     /**
      * The instances
      */
@@ -85,6 +82,18 @@ public class SharedFirebasePreferences implements SharedPreferences {
         mCache = cache;
         mRoot = root;
         mSyncAdapter = new SyncAdapter(this);
+    }
+
+    /**
+     * Sets the path pattern used to create the paths to the preferences in the database. Use the
+     * placeholders for uid and name to customize the path for each instance.
+     *
+     * @param patter the pattern
+     * @see #NAME_PLACEHOLDER
+     * @see #UID_PLACEHOLDER
+     */
+    public static void setPathPattern(String patter) {
+        sPathPattern = patter;
     }
 
     /**
