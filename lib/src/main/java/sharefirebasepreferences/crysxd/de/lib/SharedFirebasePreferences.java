@@ -20,6 +20,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -32,21 +33,24 @@ import java.util.concurrent.Executor;
  * A {@link SharedPreferences} implementation which syncs all data with firebase. Use {@link #getInstance(Context, String, int)}
  * to receive a instance
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class SharedFirebasePreferences implements SharedPreferences {
 
     /**
      * The placeholder in {@link #sPathPattern} for the preferences' names
      */
     public static final String NAME_PLACEHOLDER = "$name";
+
     /**
      * The placeholder in {@link #sPathPattern} for the user's id
      */
     public static final String UID_PLACEHOLDER = "$uid";
+
     /**
      * The log tag
      */
     private static final String TAG = "SharedFirebasePrefs";
+
     /**
      * The instances
      */
@@ -66,6 +70,11 @@ public class SharedFirebasePreferences implements SharedPreferences {
      * The {@link DatabaseReference} which is used for storing
      */
     private DatabaseReference mRoot;
+
+    /**
+     * A list with keys which should be omitted
+     */
+    private List<String> mOmmitedKeys = new ArrayList<>();
 
     /**
      * The {@link SyncAdapter} to keep the database and the local files in sync
@@ -169,6 +178,17 @@ public class SharedFirebasePreferences implements SharedPreferences {
      */
     public synchronized static SharedFirebasePreferences getDefaultInstance(Context con) {
         return (SharedFirebasePreferences) PreferenceManager.getDefaultSharedPreferences(new SharedFirebasePreferencesContextWrapper(con));
+    }
+
+    /**
+     * Omits all given keys when pushing the preferences to firebase. Use this method if you want to
+     * exclude a preference e.g. for security reasons. You can call this mehtod multiple times.
+     *
+     * @param keys all keys to be omitted.
+     */
+    public void omitKeys(String... keys) {
+        this.mOmmitedKeys.addAll(Arrays.asList(keys));
+
     }
 
     /**
@@ -597,6 +617,13 @@ public class SharedFirebasePreferences implements SharedPreferences {
                 if (values.get(k) instanceof Set) {
                     //noinspection unchecked
                     values.put(k, new ArrayList<>((Set<String>) values.get(k)));
+                }
+            }
+
+            // Remove omitted values
+            for (String key : new ArrayList<>(values.keySet())) {
+                if (preferences.mOmmitedKeys.contains(key)) {
+                    values.remove(key);
                 }
             }
 
