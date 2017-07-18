@@ -22,7 +22,7 @@ allprojects {
 Add this to your app level build.gradle:
 ```
 dependencies {
-  compile 'com.github.crysxd:shared-firebase-preferences:1.0.0'
+  compile 'com.github.crysxd:shared-firebase-preferences:1.0.1'
 }
 ```
 # Firebase Setup
@@ -35,6 +35,9 @@ To get a instance of `SharedFirebasePreferences`, simply call `SharedFirebasePre
 Simply call `SharedFirebasePreferences#pull()` to get the lastest values from the server. Note that you can add a `OnFetchCompleteListener`to the returned object to get updates about the pulling e.g. when it is completed. You can use `SharedFirebasePreferences#push()` to push the local data to the server. This method returns a `Task<Void>` to which listeners can be attached. Also calling `prefs.edit().put("greeting", "Hello World!").apply()` or `prefs.edit().put("greeting", "Hello World!").commit()` will automatically push the changes to the server.
 
 You can use `SharedFirebasePreferences#keepSynced(true)` to keep the data in-sync with the server while the app is running. You will be informed about changes via the `SharedPreferences.OnSharedPreferenceChangeListener` attached to the preferences. Please remember to call `SharedFirebasePreferences#keepSynced(false)` when your app/activity enters the background!
+
+# Omit Values
+You can call `omitKeys(String...)` on any `SharedFirebasePrefernces` to omit certain keys from being pushed to Firebase. This may be handy if e.g certain keys contain sensitiv user data or should be limited for one install time.
 
 # Use with PreferenceFragment
 You must override the `attachBaseContext(Context newBase)`  method in the `Activity` hosting the `PreferenceFragment` to use `SharedFirebasePreferences` with it:
