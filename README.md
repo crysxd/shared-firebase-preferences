@@ -37,7 +37,7 @@ Simply call `SharedFirebasePreferences#pull()` to get the lastest values from th
 You can use `SharedFirebasePreferences#keepSynced(true)` to keep the data in-sync with the server while the app is running. You will be informed about changes via the `SharedPreferences.OnSharedPreferenceChangeListener` attached to the preferences. Please remember to call `SharedFirebasePreferences#keepSynced(false)` when your app/activity enters the background!
 
 # Omit Values
-You can call `omitKeys(String...)` on any `SharedFirebasePrefernces` to omit certain keys from being pushed to Firebase. This may be handy if e.g. certain keys contain sensitiv user data or should be limited for one install time.
+You can call `omitKeys(String...)` on any `SharedFirebasePrefernces` to omit certain keys from being pushed to Firebase. This may be handy if e.g. certain keys containing sensitiv user data or data which should be limited for to the current install time.
 
 # Use with PreferenceFragment
 You must override the `attachBaseContext(Context newBase)`  method in the `Activity` hosting the `PreferenceFragment` to use `SharedFirebasePreferences` with it:
